@@ -35,8 +35,8 @@ async def concat_videos(video_list: list, output_path: str):
         '-f', 'concat',
         '-safe', '0',
         '-i', 'filelist.txt',
-        #'-c:v', libx264,  # 일괄 인코딩 진행할 경우
-        #'-c:a', aac,  # 일괄 인코딩 진행할 경우
+        #'-c:v', "libx264",  # 일괄 인코딩 진행할 경우
+        #'-c:a', "aac",  # 일괄 인코딩 진행할 경우
         output_path
     ]
     process = await asyncio.create_subprocess_exec(
@@ -94,12 +94,14 @@ async def get_media_info(file_path: str):
     }
 
 
-async def encode_video(input_file, output_file, video_codec, audio_codec):
+async def encode_video(input_file, output_file, video_codec, audio_codec,resolution,frame_rate):
     command = [
         'ffmpeg',
         '-i', input_file,
         '-c:v', video_codec,
         '-c:a', audio_codec,
+        '-vf', f"scale={resolution}",
+        '-r', str(frame_rate),
         output_file
     ]
     process = await asyncio.create_subprocess_exec(

@@ -189,7 +189,9 @@ async def handle_encode_job(job: JobQueue, db: AsyncSession):
             input_file=video_path,
             output_file=job.output_path,
             video_codec=job.job_detail["video_codec"],
-            audio_codec=job.job_detail["audio_codec"]
+            audio_codec=job.job_detail["audio_codec"],
+            resolution=job.job_detail["resolution"],
+            frame_rate=job.job_detail["frame_rate"]
         )
         video_data = ProcessedVideoRequest(processed_file_path=job.output_path, encode_info=job.job_detail)
         await create_processed_video(db=db, video=video_data)
