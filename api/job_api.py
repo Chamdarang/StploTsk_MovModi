@@ -19,7 +19,7 @@ async def add_concat_request(request: ConcatRequest, db: AsyncSession = Depends(
     return await handle_concat_request(request, db)
 
 
-@router.post("/encoding")  # 코덱 바꿔 재인코딩
+@router.post("/encoding")  # 코덱,해상도,프레임 바꿔 재인코딩
 async def encode_request(request: EncodingRequest, db: AsyncSession = Depends(get_db)):
     return await handle_encoding_request(request, db)
 

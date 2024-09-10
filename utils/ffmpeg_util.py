@@ -35,6 +35,8 @@ async def concat_videos(video_list: list, output_path: str):
         '-f', 'concat',
         '-safe', '0',
         '-i', 'filelist.txt',
+        #'-c:v', libx264,  # 일괄 인코딩 진행할 경우
+        #'-c:a', aac,  # 일괄 인코딩 진행할 경우
         output_path
     ]
     process = await asyncio.create_subprocess_exec(
@@ -49,11 +51,11 @@ async def concat_videos(video_list: list, output_path: str):
         raise HTTPException(status_code=500, detail=f"Concat failed: {stderr.decode()}")
 
 
-async def get_media_codec(file_path: str):
+async def get_media_info(file_path: str):
     command = [
         'ffprobe',
         '-v', 'error',  # 오류 메시지만 출력
-        '-show_entries', 'stream=codec_name,codec_type',  # 비디오와 오디오 정보 출력
+        '-show_entries', 'stream=codec_name,codec_type,width,height,r_frame_rate',  # 비디오와 오디오 정보 출력
         '-of', 'json',  # 결과를 JSON 형식으로 출력
         file_path
     ]
@@ -76,10 +78,19 @@ async def get_media_codec(file_path: str):
 
     video_streams = next((s['codec_name'] for s in media_info.get('streams', []) if s['codec_type'] == 'video'), None)  #  type이 "video"인 dict의 name을 가져오는데 없으면 none
     audio_streams = next((s['codec_name'] for s in media_info.get('streams', []) if s['codec_type'] == 'audio'), None)
+    resolution = next((f"{s['width']}:{s['height']}" for s in media_info.get('streams', []) if s['codec_type'] == 'video'),None)
+    frame_rate = next((s['r_frame_rate'] for s in media_info.get('streams', []) if s['codec_type'] == 'video'),None)
+
+    # 프레임 레이트는 '30/1' 같은 형식으로 나올 수 있으므로, 이를 30같은 숫자로 변환
+    if frame_rate and '/' in frame_rate:
+        num, denom = frame_rate.split('/')
+        frame_rate = int(float(num) / float(denom))
 
     return {
         "video_streams": video_streams,
-        "audio_streams": audio_streams
+        "audio_streams": audio_streams,
+        "resolution": resolution,
+        "frame_rate": frame_rate
     }
 
 

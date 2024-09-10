@@ -15,10 +15,13 @@ class ConcatRequest(RequestBase):  # Concat
     video_ids: list[int]
 
 
-class EncodingRequest(RequestBase):  # Trim
+class EncodingRequest(RequestBase):  # Encode
     video_id: int
     video_codec: str = "libx264"
     audio_codec: str = "aac"
+    resolution: str = "1920:1080"
+    frame_rate: int = 30
+
 
 class JobQueueCreate(BaseModel):
     job_type: str

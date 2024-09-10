@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from config import local_origin_file_path, allowed_media_types
 from crud.video_crud import create_uploaded_video, get_processed_video_by_id, get_video_by_id
 from schemas.video_scheme import UploadedVideoRequest
-from utils.ffmpeg_util import get_media_codec
+from utils.ffmpeg_util import get_media_info
 
 
 async def handle_video_upload(files: list[UploadFile], db: AsyncSession):
@@ -52,4 +52,4 @@ async def handle_video_codec_check(video_id: int, db: AsyncSession):
     video = await get_video_by_id(db, video_id)
     if not video:
         raise HTTPException(status_code=404, detail="Video not found")
-    return await get_media_codec(video.original_file_path)
+    return await get_media_info(video.original_file_path)

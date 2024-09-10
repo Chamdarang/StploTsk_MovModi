@@ -24,7 +24,7 @@ async def view_processed_videos(skip: int = 0, limit: int = 100, db: AsyncSessio
     return await get_all_videos(skip=skip, limit=limit, db=db)  # 그저 읽을 뿐이라 바로 crud
 
 
-@router.get("/view/info/codec") # 코덱정보 확인용
+@router.get("/view/info") # 비디오 정보 확인용
 async def view_video_codec(video_id: int, db: AsyncSession = Depends(get_db)):
     return await handle_video_codec_check(video_id,db)
 

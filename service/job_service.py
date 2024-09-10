@@ -11,7 +11,7 @@ from crud.video_crud import get_video_by_id, \
 from models.job_model import JobQueue
 from schemas.job_scheme import TrimRequest, JobQueueCreate, ConcatRequest, EncodingRequest
 from schemas.video_scheme import ProcessedVideoRequest
-from utils.ffmpeg_util import trim_video, concat_videos, get_media_codec, encode_video
+from utils.ffmpeg_util import trim_video, concat_videos, encode_video, get_media_info
 from utils.time_util import is_float, time_to_seconds
 from utils.video_util import get_file_path
 
@@ -65,11 +65,11 @@ async def handle_concat_request(request: ConcatRequest, db: AsyncSession):
     if not videos or len(videos) != len(request.video_ids):
         raise HTTPException(status_code=404, detail="Some Videos not found")
     video_paths = [await get_file_path(video) for video in videos]
-    video_codecs = [await get_media_codec(path) for path in video_paths]
-    video_codecs = [(x['video_streams'], x['audio_streams']) for x in video_codecs]
+    video_codecs = [await get_media_info(path) for path in video_paths]
+    video_codecs = [(x['video_streams'], x['audio_streams'], x['resolution'], x['frame_rate']) for x in video_codecs]
     if len(set(video_codecs)) != 1:
         raise HTTPException(status_code=400,
-                            detail="The video codecs are not the same. Please ensure all videos have the same codec and try again.")
+                            detail="All videos must have the same video codec, audio codec, resolution, and frame rate. Please ensure that the video files are consistent and try again.")
     job_detail = {"video_ids": request.video_ids}
     fn = video_paths[0].split("/")[-1]
     ext = fn.split(".")[-1].lower()
@@ -89,20 +89,24 @@ async def handle_concat_request(request: ConcatRequest, db: AsyncSession):
 
 
 async def handle_encoding_request(request: EncodingRequest, db: AsyncSession):
+    resolution_format = re.compile(r"^\d{1,}:\d{1,}$")
+
     if request.audio_codec not in allowed_audio_codecs or request.video_codec not in allowed_video_codecs:
         raise HTTPException(status_code=400,
                             detail="Unsupported codec requested. Please ensure that the video codec is one of the allowed formats: "
                f"{', '.join(allowed_video_codecs)} and the audio codec is one of the allowed formats: "
-               f"{', '.join(allowed_audio_codecs)}."
-)
+               f"{', '.join(allowed_audio_codecs)}.")
+    elif not resolution_format.match(request.resolution):
+        raise HTTPException(status_code=400, detail="Please provide a valid resolution.(e.g. '1920:1080')")
     video = await get_video_by_id(db, request.video_id)
     if not video:
         raise HTTPException(status_code=404, detail=f"Video with id {request.video_id} not found.")
     video_path = await get_file_path(video)
-    codec_info = await get_media_codec(video_path)
-    if codec_info["video_streams"] == request.video_codec and codec_info["audio_streams"] == request.audio_codec:
+    video_info = await get_media_info(video_path)
+    if video_info["video_streams"] == request.video_codec and video_info["audio_streams"] == request.audio_codec\
+            and video_info["resolution"] == request.resolution and video_info["frame_rate"] == request.frame_rate:
         raise HTTPException(status_code=400,
-                            detail="The video codec matches the requested codec. No encoding is required.")
+                            detail="The video already matches the requested codec, resolution, and frame rate. No encoding is necessary")
     job_detail = {"video_id": request.video_id, "video_codec": request.video_codec, "audio_codec": request.audio_codec}
     fn = video_path.split("/")[-1]
     ext = fn.split(".")[-1].lower()
