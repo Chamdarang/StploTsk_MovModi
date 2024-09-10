@@ -37,6 +37,8 @@ async def concat_videos(video_list: list, output_path: str):
         '-i', 'filelist.txt',
         #'-c:v', "libx264",  # 일괄 인코딩 진행할 경우
         #'-c:a', "aac",  # 일괄 인코딩 진행할 경우
+        #'-vf', "scale=1920:1080",  # 일괄 인코딩 진행할 경우
+        #'-r', "30", # 일괄 인코딩 진행할 경우
         output_path
     ]
     process = await asyncio.create_subprocess_exec(
