@@ -3,7 +3,7 @@ from datetime import datetime
 from fastapi import UploadFile, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from config import local_origin_file_path, allowed_media_types
+from config import server_url, local_origin_file_path, allowed_media_types
 from crud.video_crud import create_uploaded_video, get_processed_video_by_id, get_video_by_id
 from schemas.video_scheme import UploadedVideoRequest
 from utils.ffmpeg_util import get_media_info
@@ -47,7 +47,7 @@ async def handle_video_download(video_id: int, db: AsyncSession):
     if not video:
         raise HTTPException(status_code=404, detail="Processed video not found.")
 
-    return {"download_link": f"http://127.0.0.1:8000{video.processed_file_path[1:]}"}
+    return {"download_link": server_url+video.processed_file_path[1:]}
 
 
 async def handle_video_codec_check(video_id: int, db: AsyncSession):
