@@ -19,7 +19,9 @@ async def handle_video_upload(files: list[UploadFile], db: AsyncSession):
     for file in files:
         fn = file.filename
         ext = fn.split(".")[-1].lower()
-        if ext not in allowed_media_types:
+        if not file.content_type.startswith('video/'):
+            raise HTTPException(status_code=400, detail="File is not a video")
+        elif ext not in allowed_media_types:
             raise HTTPException(status_code=415, detail=f"{fn} has an unsupported format.")
 
     for file in files:
