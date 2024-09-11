@@ -76,18 +76,92 @@ CREATE TABLE job_queue (
 ```
 
 ## API
-※ Trim작업과 Concat작업은 '사용자가 업로드 한 영상' 외에도 '생성된 최종 동영상'에도 수행할 수 있도록 진행함<br>
-※ Concat작업에서 일괄적으로 코덱을 맞추는 인코딩을 진행하면 시간이 오래걸리는 이유로 별도의 Encode API를 만들어 코덱을 변환해야 하도록 함<br>
+※비고1- API 문서는 `API 가이드 문서.pdf` 혹은 서비스 실행 후 `서비스주소/docs`의 Swagger 문서 참고<br>
+※비고2- Trim작업과 Concat작업은 '사용자가 업로드 한 영상' 외에도 '생성된 최종 동영상'에도 수행할 수 있도록 진행함<br>
+※비고3- Concat작업에서 일괄적으로 코덱을 맞추는 인코딩을 진행하면 시간이 오래걸리는 이유로 별도의 Encode API를 만들어 코덱을 변환해야 하도록 함<br>
   Encode API 없이 Concat에서 일괄적으로 인코딩 하도록 하려면<br>
   `service.job_service.py`의 `handle_concat_request()`에 해당하는 67\~72줄을 주석처리/삭제 후<br>
   `utils.ffmpeg_util.py`의 `concat_videos()`에 해당하는 38\~41줄의 주석처리를 해제<br>
-※ API 문서는 `API 가이드 문서.pdf` 혹은 서비스 실행 후 `서비스주소/docs`의 Swagger 문서 참고<br>
 
 
 
--   
-URI : 
-Method :  
-Request : 
-Response :
-Note :
+
+- 파일 업로드<br>
+URI : /video/uploade<br>
+Method : put<br>
+Request : files: List[Files]<br>
+Note :<br>
+  - response_body에 담는것이 아니라 `response = requests.put(url, files=files)`처럼 별도로 보내는것임<br>
+  - 10가지의 일반적인 비디오파일 형식을 허용하도록 진행함<br>
+  - 유저가 업로드한 파일명을 남겨두면서 중복이 없도록 하기 위해 파일명에 연월일시분초를 추가<br>
+  - 하나만 보내도 되나 안 보내는것은 안됨<br>
+
+
+- 파일 다운로드<br>
+URI : /video/download<br>
+Method : get<br>
+Request : /video/download?video_id=1<br>
+Note :<br>
+  - 요구사항에 따라 작업이 완료된 최종 동영상에 한하여 지원하도록 함<br>
+  - 로컬서버에서 진행하여 `http://127.0.0.1:8000`라는 주소값이 하드코딩 됨<br>
+
+
+- 전체 파일 목록 확인<br>
+URI : /video/view/all<br>
+Method : get<br>
+Request : /video/view/all?skip=0&limit=100<br>
+Note :<br>
+  - 페이징을 위한 skip과 limit는 보내지 않아도 됨(기본적으로 0페이지, 100개 제한으로 보내줌)<br>
+  - 각 항목이 5개의 정보를 다 가지고 있어야 한다는 조건에 따라 구현됨<br>
+
+
+- 파일 정보 확인<br>
+URI : /video/view/info<br>
+Method : get<br>
+Request : /video/view/all?video_id=1<br>
+Note :<br>
+  - 추가로 구현된 인코딩 작업 관련하여 파일의 코덱, 프레임, 해상도를 확인하기 위해 구현함<br>
+
+
+- Trim 작업 예약<br>
+URI : /video/process/trim<br>
+Method : post<br>
+Request : { "request_code":str, "video_id":int, "trim_start":str, "trim_end":str }<br>
+Note :<br>
+  - 작업 수행 단계에서의 사용자 구분을 위한 request_code 추가<br>
+  - 요청값에 대한 검증 진행 후 작업대기열에 추가하도록 진행<br>
+  - `형식 또는 밀리초`라는 요구사항에 대해 FFmpeg에서 지원하는 2가지 형식 외에 숫자만 올 경우 밀리초로 인식하도록 하는것으로 이해함<br>
+  - trim_end에는 음수 시간값이 불가능하도록 구현<br>
+
+
+- Concat 작업 예약<br>
+URI : /video/process/concat<br>
+Method : post<br>
+Request : { "request_code":str, "video_ids":List[int] }<br>
+Note :<br>
+  - 작업 수행 단계에서의 사용자 구분을 위한 request_code 추가<br>
+  - 요청값에 대한 검증 진행 후 작업대기열에 추가하도록 진행<br>
+  - 인코딩을 하며 concat을 하면 오래걸리는 이유로 비디오 정보(코덱,해상도,프레임)가 일치해야 가능하도록 구현함<br>
+    해당 내용 관련하여 원치 않을 시 상단 비고3 참고<br>
+
+
+- Encoding 작업 예약<br>
+URI : /video/process/encodeing<br>
+Method : post<br>
+Request : { "request_code":str, "video_ids":int, "video_codec":str, "audio_codec":str, "resolution":str, "frame_rate":int }<br>
+Note :<br>
+  - concat작업의 속도를 위해 따로 구현함<br>
+  - video_codec, audio_codec, resolution, frame_rate 각 정보는 보내지 않아도 되며<br>
+    보내지 않을 시 각각 "libx264", "aac", "1920:1080", 30 으로 전달되도록 함<br>
+  - 본 작업 또한 작업대기열에 추가되어 명령 작업 수행시 진행되도록 함<br>
+
+
+- 예약된 작업 수행<br>
+URI : /video/process/execute<br>
+Method : post<br>
+Request : { "request_code":str }<br>
+Note :<br>
+  - 동일한 request_code 예약된 대기중인 작업을 순차적으로 수행함<br>
+  - 파일명에 작업명(trim,concat,encode)와 시간(연월일시분초)를 추가하여 중복되지 않도록 저장<br>
+  - 작업을 수행하지 않으면 파일도 생성되지 않고 작업 결과도 알 수 없는 상태이기에<br>
+    예약된 작업의 결과를 다음 concat 작업에 이어서 사용하는 등의 활용은 되지 않도록 함 ( `concat( trim(video), video )` 불가)
