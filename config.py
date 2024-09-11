@@ -1,3 +1,4 @@
+server_url = "http://127.0.0.1:8000"
 db_connect_info = "postgresql+asyncpg://postgres:root@localhost/movmodi"
 
 local_origin_file_path = "./storage/origin/"
